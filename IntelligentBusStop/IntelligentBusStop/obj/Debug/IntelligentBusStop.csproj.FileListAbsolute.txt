@@ -1,0 +1,12 @@
+c:\users\игорь\source\repos\IntelligentBusStop\IntelligentBusStop\bin\Debug\IntelligentBusStop.exe.config
+c:\users\игорь\source\repos\IntelligentBusStop\IntelligentBusStop\bin\Debug\IntelligentBusStop.exe
+c:\users\игорь\source\repos\IntelligentBusStop\IntelligentBusStop\bin\Debug\IntelligentBusStop.pdb
+c:\users\игорь\source\repos\IntelligentBusStop\IntelligentBusStop\obj\Debug\IntelligentBusStop.csprojAssemblyReference.cache
+c:\users\игорь\source\repos\IntelligentBusStop\IntelligentBusStop\obj\Debug\IntelligentBusStop.Form1.resources
+c:\users\игорь\source\repos\IntelligentBusStop\IntelligentBusStop\obj\Debug\IntelligentBusStop.Form2.resources
+c:\users\игорь\source\repos\IntelligentBusStop\IntelligentBusStop\obj\Debug\IntelligentBusStop.Form3.resources
+c:\users\игорь\source\repos\IntelligentBusStop\IntelligentBusStop\obj\Debug\IntelligentBusStop.Properties.Resources.resources
+c:\users\игорь\source\repos\IntelligentBusStop\IntelligentBusStop\obj\Debug\IntelligentBusStop.csproj.GenerateResource.cache
+c:\users\игорь\source\repos\IntelligentBusStop\IntelligentBusStop\obj\Debug\IntelligentBusStop.csproj.CoreCompileInputs.cache
+c:\users\игорь\source\repos\IntelligentBusStop\IntelligentBusStop\obj\Debug\IntelligentBusStop.exe
+c:\users\игорь\source\repos\IntelligentBusStop\IntelligentBusStop\obj\Debug\IntelligentBusStop.pdb
