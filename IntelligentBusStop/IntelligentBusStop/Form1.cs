@@ -9,16 +9,115 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using System.Net.Sockets;
+using System.Net;
+using System.Threading;
 
 namespace IntelligentBusStop
 {
     public partial class Form1 : Form
     {
+        private static IPAddress remoteIPAddress;
+        private static int remotePort;
+        private static int localPort;
+        private static string kek;
         public Form1()
         {
             InitializeComponent();
+            localPort = 5002;
+            remotePort = 5001;
+            remoteIPAddress = IPAddress.Parse("127.0.0.1");
+
             comboBox1.Items.Add("Центр молодёжного творчества");
-            OutputBox1.Text = "2 | Троллейбус | <1 мин. | На конечную" + Environment.NewLine + "2 | Троллейбус | 11 мин. | С конечной" + Environment.NewLine + "3 | Троллейбус | 8 мин. | На конечную" + Environment.NewLine + "3 | Троллейбус | 3 мин. | С конечной" + Environment.NewLine + "4 | Троллейбус | 7 мин." + Environment.NewLine + "8 | Троллейбус | 6 мин. | На конечную" + Environment.NewLine + "8 | Троллейбус | 4 мин. | С конечной";
+            OutputBox1.Clear();
+            Thread tRec = new Thread(new ThreadStart(Receiver));
+            tRec.Start();
+            //OutputBox1.Text = "2 | Троллейбус | <1 мин. | На конечную" + Environment.NewLine + "2 | Троллейбус | 11 мин. | С конечной" + Environment.NewLine + "3 | Троллейбус | 8 мин. | На конечную" + Environment.NewLine + "3 | Троллейбус | 3 мин. | С конечной" + Environment.NewLine + "4 | Троллейбус | 7 мин." + Environment.NewLine + "8 | Троллейбус | 6 мин. | На конечную" + Environment.NewLine + "8 | Троллейбус | 4 мин. | С конечной";
+            DoWorkAsyncInfiniteLoop();
+        }
+
+        private async Task DoWorkAsyncInfiniteLoop()
+        {
+            while (true)
+            {
+                //label1.Text = kek;
+                //await Task.Delay(200);
+                double lat;
+                double lng;
+                int ID;
+                int time;
+                int day;
+                bool isHoliday;
+                int temperature;
+                double weather;
+
+                int counter = 0;
+                for (int i = 0; i < kek.Length; i++)
+                {
+                    string temp = "";
+                    if (kek[i] != ' ') temp += kek[i];
+                    if (kek[i] == ' ' || i == kek.Length - 1)
+                    {
+                        switch (counter)
+                        {
+                            case 0:
+                                lat = double.Parse(temp);
+                                break;
+                            case 1:
+                                lng = double.Parse(temp);
+                                break;
+                            case 2:
+                                ID = int.Parse(temp);
+                                break;
+                            case 3:
+                                time = int.Parse(temp);
+                                break;
+                            case 4:
+                                day = int.Parse(temp);
+                                break;
+                            case 5:
+                                if (temp == "0") isHoliday = false;
+                                else isHoliday = true;
+                                break;
+                            case 6:
+                                temperature = int.Parse(temp);
+                                break;
+                            case 7:
+                                weather = double.Parse(temp);
+                                break;
+                        }
+                        counter++;
+                    }
+                    OutputBox1.Text += kek + Environment.NewLine;
+                }
+            }
+        }
+
+        public static void Receiver()
+        {
+            // Создаем UdpClient для чтения входящих данных
+            UdpClient receivingUdpClient = new UdpClient(localPort);
+
+            IPEndPoint RemoteIpEndPoint = null;
+
+            try
+            {
+                while (true)
+                {
+                    // Ожидание дейтаграммы
+                    byte[] receiveBytes = receivingUdpClient.Receive(
+                       ref RemoteIpEndPoint);
+
+                    // Преобразуем и отображаем данные
+                    string returnData = Encoding.UTF8.GetString(receiveBytes);
+                    kek = returnData;
+                    //await Task.Delay(200);
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Возникло исключение: " + ex.ToString() + "\n  " + ex.Message);
+            }
         }
 
         private void маршрутыToolStripMenuItem_Click(object sender, EventArgs e)
