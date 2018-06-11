@@ -4,14 +4,14 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace SmartStop
+namespace IntelligentBusStop
 {
     internal class Route
     {
         public int routeNumber { get; set; }
         public string transportType { get; set; }
         public int ID { get; set; }
-        public string path { get; set; }
+        public List<int> path { get; set; }
 
         public Route()
         {
