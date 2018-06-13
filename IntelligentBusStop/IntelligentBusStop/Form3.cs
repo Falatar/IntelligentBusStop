@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
 using System.Drawing;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -12,12 +13,23 @@ namespace IntelligentBusStop
 {
     public partial class Form3 : Form
     {
-        public Form3()
+        public Form3(string fileName)
         {
             InitializeComponent();
-            textBox1.Text += "7 | " + "8 | " + "Троллейбус | " + "213 | " + "3768" + Environment.NewLine;
-            textBox1.Text += "16 | " + "17 | " + "Троллейбус | " + "149 | " + "3810" + Environment.NewLine;
-            textBox1.Text += "14 | " + "24 | " + "Троллейбус | " + "213 | " + "3812";
+            using (StreamReader sR = new StreamReader(fileName))
+            {
+                while (true)
+                {
+                    string temp = sR.ReadLine();
+                    if (temp == null) break;
+                    for (int i = 0; i < temp.Length; i++)
+                    {
+                        textBox1.Text += temp[i];
+                        if (temp[i] == ' ') textBox1.Text += "| ";
+                    }
+                    textBox1.Text += Environment.NewLine;
+                }
+            }
         }
     }
 }

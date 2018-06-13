@@ -12,6 +12,7 @@ using System.Windows.Forms;
 using System.Net.Sockets;
 using System.Net;
 using System.Threading;
+using System.Web;
 
 namespace IntelligentBusStop
 {
@@ -32,6 +33,12 @@ namespace IntelligentBusStop
         private static int temperature;
         private static double weather;
 
+        Collector collection = new Collector("stat.txt", 1.0);
+
+        List<Stop> busStops = new List<Stop>();
+        List<Road> mapRoads = new List<Road>();
+        List<Route> busRoutes = new List<Route>();
+        List<Transport> mapTransports = new List<Transport>();
 
         public Form1()
         {
@@ -40,15 +47,12 @@ namespace IntelligentBusStop
             remotePort = 8001;
             remoteIPAddress = IPAddress.Parse("127.0.0.1");
 
-            List<Stop> busStops = new List<Stop>();
-            List<Road> mapRoads = new List<Road>();
-            List<Route> busRoutes = new List<Route>();
-            List<Transport> mapTransports = new List<Transport>();
-
             uploadStops(busStops);
             uploadRoads(mapRoads);
             uploadRoutes(busRoutes);
             uploadTransports(mapTransports);
+
+            trainNN(mapRoads);
 
             comboBox1.Items.Add("Центр молодёжного творчества");
             OutputBox1.Clear();
@@ -162,7 +166,26 @@ namespace IntelligentBusStop
 
         private void маршрутыToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            Form2 Routes = new Form2();
+            List<int> numbers = new List<int>();
+            List<string> names = new List<string>();
+            List<List<string>> ways = new List<List<string>>();
+            for (int i = 0; i < busRoutes.Count; i++)
+            {
+                numbers.Add(busRoutes[i].routeNumber);
+                names.Add(busRoutes[i].transportType);
+                List<string> temp = new List<string>();
+                for (int j = 0; j < busRoutes[i].path.Count; j++)
+                {
+                    int stopID = 0;
+                    for (int k = 0; k < busStops.Count; k++)
+                    {
+                        if (busStops[k].ID == busRoutes[i].path[j]) { stopID = k; break; }
+                    }
+                    temp.Add(busStops[stopID].name);
+                }
+                ways.Add(temp);
+            }
+            Form2 Routes = new Form2(numbers, names, ways);
             Routes.ShowDialog();
         }
 
@@ -170,63 +193,18 @@ namespace IntelligentBusStop
         {
             List<int> lines = new List<int>();
             List<int> distances = new List<int>();
-            using (StreamReader sR = new StreamReader("lines.txt"))
+            for (int i = 0; i < mapRoads.Count; i++)
             {
-                string temp = sR.ReadLine();
-                lines = space_Parsing(temp);
-                string temp2 = sR.ReadLine();
-                distances = space_Parsing(temp2);
+                lines.Add(mapRoads[i].firstStop);
+                lines.Add(mapRoads[i].secondStop);
+                distances.Add(mapRoads[i].length);
             }
-            List<List<int>> statistics = new List<List<int>>();
-            using (StreamReader sR = new StreamReader("stat.txt"))
-            {
-                while (true)
-                {
-                    string temp = sR.ReadLine();
-                    if (temp == null) break;
-                    List<int> stat = new List<int>();
-                    stat = space_Parsing(temp);
-                    statistics.Add(stat);
-                }
-            }
-            List<double> weights = new List<double>();
-            List<int> count = new List<int>();
-            for (int i = 0; i < lines.Count / 2; i++)
-            {
-                weights.Add(0);
-                count.Add(0);
-            }
-            for (int i = 0; i < statistics.Count; i++)
-            {
-                for (int j = 0; j < lines.Count; j += 2)
-                {
-                    if (lines[j] == statistics[i][0] && lines[j + 1] == statistics[i][1] || lines[j + 1] == statistics[i][0] && lines[j] == statistics[i][1])
-                    {
-                        weights[j / 2] += ((double)distances[j / 2] / (double)statistics[i][2]) / (double)(60 * 10 / 36);
-                        count[j / 2]++;
-                        break;
-                    }
-                }
-            }
-            for (int i = 0; i < weights.Count; i++)
-            {
-                weights[i] = weights[i] / count[i];
-            }
-            using (StreamWriter sw = new StreamWriter("weights.txt", false, System.Text.Encoding.Default))
-            {
-                for (int i = 0; i < weights.Count; i++)
-                {
-                    string ToFile = "";
-                    ToFile += weights[i].ToString();
-                    if (i != weights.Count - 1) ToFile += " ";
-                    sw.Write(ToFile);
-                }
-            }
+            collection.rewriteW(lines, distances);
         }
 
         private void статистикаToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            Form3 Stats = new Form3();
+            Form3 Stats = new Form3(collection.fileName);
             Stats.ShowDialog();
         }
 
@@ -283,7 +261,7 @@ namespace IntelligentBusStop
 
         private void uploadStops(List<Stop> stops)
         {
-            using (StreamReader sR = new StreamReader("stops.txt"))
+            using (StreamReader sR = new StreamReader("stops.txt", Encoding.Default))
             {
                 int score = 0;
                 Stop tmp = new Stop();
@@ -336,7 +314,7 @@ namespace IntelligentBusStop
 
         private void uploadRoads(List<Road> roads)
         {
-            using (StreamReader sR = new StreamReader("lines.txt"))
+            using (StreamReader sR = new StreamReader("lines.txt", Encoding.Default))
             {
                 int score = 0;
                 Stop tmp = new Stop();
@@ -345,12 +323,12 @@ namespace IntelligentBusStop
                 stops = space_Parsing(temp);
                 temp = sR.ReadLine();
                 distances = space_Parsing(temp);
-                using (StreamReader sR1 = new StreamReader("weights.txt"))
+                using (StreamReader sR1 = new StreamReader("weights.txt", Encoding.Default))
                 {
                     List<List<double>> roadWeights = new List<List<double>>();
                     while (true)
                     {
-                        string deepTemp = sR.ReadLine();
+                        string deepTemp = sR1.ReadLine();
                         if (deepTemp == null) break;
                         List<double> dayWeights = new List<double>();
                         dayWeights = spaceDouble_Parsing(deepTemp);
@@ -361,9 +339,10 @@ namespace IntelligentBusStop
                         Road oneRoad = new Road();
                         oneRoad.firstStop = stops[i];
                         oneRoad.secondStop = stops[i + 1];
-                        oneRoad.secondStop = distances[i / 2];
+                        oneRoad.length = distances[i / 2];
                         oneRoad.weight = roadWeights[i / 2];
-                        roads.Add(oneRoad);
+                        Road newRoad = new Road(oneRoad);
+                        roads.Add(newRoad);
                     }
                 }
             }
@@ -371,7 +350,7 @@ namespace IntelligentBusStop
 
         private void uploadRoutes(List<Route> routes)
         {
-            using (StreamReader sR = new StreamReader("routes.txt"))
+            using (StreamReader sR = new StreamReader("routes.txt", Encoding.Default))
             {
                 int score = 0;
                 Route tmp = new Route();
@@ -408,7 +387,7 @@ namespace IntelligentBusStop
 
         private void uploadTransports(List<Transport> transports)
         {
-            using (StreamReader sR = new StreamReader("transports.txt"))
+            using (StreamReader sR = new StreamReader("transports.txt", Encoding.Default))
             {
                 int score = 0;
                 Transport tmp = new Transport();
@@ -462,7 +441,7 @@ namespace IntelligentBusStop
             List<string> inputTransports = new List<string>();
             List<int> outputTimes = new List<int>();
 
-            using (StreamReader sR = new StreamReader("transports.txt"))
+            using (StreamReader sR = new StreamReader("stat.txt", Encoding.Default))
             {
                 while (true)
                 {
@@ -503,24 +482,206 @@ namespace IntelligentBusStop
                                     inputWeathers.Add(double.Parse(tmp));
                                     break;
                             }
+                            counter++;
                             tmp = "";
                         }
                         if (i == temp.Length - 1)
                         {
                             for (int j = 0; j < roads.Count; j++)
                             {
-                                if (lat == roads[i].firstStop && lng == roads[i].secondStop || lng == roads[i].firstStop && lat == roads[i].secondStop)
+                                if (lat == roads[j].firstStop && lng == roads[j].secondStop || lng == roads[j].firstStop && lat == roads[j].secondStop)
                                 {
-                                    inputDistances.Add(roads[i].length);
-                                    inputWeights.Add(roads[i].weight[time / 3600]);
+                                    inputDistances.Add(roads[j].length);
+                                    inputWeights.Add(roads[j].weight[dayStatus(time)]);
                                     break;
                                 }
                             }
 
                         }
                     }
+
                 }
             }
+        }
+
+        private int dayStatus(int time)
+        {
+            int n = 0;
+            int result = 0;
+            for (int i = 0; i < 48; i++)
+            {
+                if (time > n && time < n + 1800)
+                {
+                    result = i;
+                    break;
+                }
+                n += 1800;
+            }
+            return result;
+        }
+
+        private Pair<int, double> calculateDistance(double lat, double lng, int time, List<Road> roads, Route way, List<Stop> stops, Transport bus, Stop busStop, bool from, double error)
+        {
+            Pair<int, double> result = new Pair<int, double>(0, 0);
+            //Формулы прямых
+            List<double> As = new List<double>();
+            List<double> Bs = new List<double>();
+            List<double> Cs = new List<double>();
+            //Вычисление параметров
+            for (int i = 0; i < roads.Count; i++)
+            {
+                int stop1 = 0, stop2 = 0;
+                for (int j = 0; j < stops.Count; j++)
+                {
+                    if (stops[j].ID == roads[i].firstStop) stop1 = j;
+                    if (stops[j].ID == roads[i].secondStop) stop2 = j;
+                }
+                As.Add(stops[stop1].longitude - stops[stop2].longitude);
+                Bs.Add(stops[stop2].latitude - stops[stop1].latitude);
+                Cs.Add(stops[stop2].longitude * stops[stop1].latitude - stops[stop1].longitude * stops[stop2].latitude);
+            }
+            //Формулы перпендикуляров
+            List<double> verticalAs = new List<double>();
+            List<double> verticalBs = new List<double>();
+            List<double> verticalCs = new List<double>();
+            //Составление уравнений перпендикуляров
+            for (int i = 0; i < roads.Count; i++)
+            {
+                verticalAs.Add(As[i]);
+                verticalBs.Add(-Bs[i]);
+                verticalCs.Add(As[i] * -lng - Bs[i] * -lat);
+            }
+
+            int currentRoad = 0;
+            if (bus.previousStop != 0 && bus.nextStop != 0)
+            {
+                for (int i = 0; i < roads.Count; i++)
+                {
+                    if (bus.previousStop == roads[i].firstStop && bus.nextStop == roads[i].secondStop || bus.previousStop == roads[i].secondStop && bus.nextStop == roads[i].firstStop)
+                    {
+                        currentRoad = i;
+                        break;
+                    }
+                }
+            }
+            else
+            {
+                //Определение подходящих перпендикуляров
+                List<int> suitableRoads = new List<int>();
+                List<double> suiX = new List<double>();
+                List<double> suiY = new List<double>();
+                for (int i = 0; i < roads.Count; i++)
+                {
+                    int stop1 = 0, stop2 = 0;
+                    for (int j = 0; j < stops.Count; j++)
+                    {
+                        if (stops[j].ID == roads[i].firstStop) stop1 = j;
+                        if (stops[j].ID == roads[i].secondStop) stop2 = j;
+                    }
+                    double x = (Cs[i] * verticalBs[i] - verticalCs[i] * Bs[i]) - (As[i] * verticalBs[i] - verticalAs[i] * Bs[i]);
+                    double y = (As[i] * verticalCs[i] - verticalAs[i] * Cs[i]) - (As[i] * verticalBs[i] - verticalAs[i] * Bs[i]);
+
+                    if (x >= stops[stop1].latitude - error && x <= stops[stop2].latitude + error && y >= stops[stop1].longitude - error && y <= stops[stop2].longitude + error) { suitableRoads.Add(i); suiX.Add(x); suiY.Add(y); continue; }
+                    if (x <= stops[stop1].latitude + error && x >= stops[stop2].latitude - error && y >= stops[stop1].longitude - error && y <= stops[stop2].longitude + error) { suitableRoads.Add(i); suiX.Add(x); suiY.Add(y); continue; }
+                    if (x >= stops[stop1].latitude - error && x <= stops[stop2].latitude + error && y <= stops[stop1].longitude + error && y >= stops[stop2].longitude - error) { suitableRoads.Add(i); suiX.Add(x); suiY.Add(y); continue; }
+                    if (x <= stops[stop1].latitude + error && x >= stops[stop2].latitude - error && y <= stops[stop1].longitude + error && y >= stops[stop2].longitude - error) { suitableRoads.Add(i); suiX.Add(x); suiY.Add(y); continue; }
+                }
+                //Выявление окончательных решений
+                double min = Math.Sqrt(Math.Pow(lat - suiX[0], 2) + Math.Pow(lng - suiY[0], 2));
+                for (int i = 1; i < suitableRoads.Count; i++)
+                {
+                    double temp = Math.Sqrt(Math.Pow(lat - suiX[i], 2) + Math.Pow(lng - suiY[i], 2));
+                    if (temp < min) { min = temp; currentRoad = suitableRoads[i]; }
+                }
+                if (Math.Sqrt(Math.Pow(lat - stops[roads[currentRoad].secondStop].latitude, 2) + Math.Pow(lng - stops[roads[currentRoad].secondStop].longitude, 2)) <= error)
+                {
+                    for (int i = 0; i < way.path.Count; i++)
+                    {
+                        if (roads[currentRoad].firstStop == way.path[i] && roads[currentRoad].secondStop == way.path[i + 1] || roads[currentRoad].firstStop == way.path[i + 1] && roads[currentRoad].secondStop == way.path[i])
+                        {
+                            if (i == way.path.Count - 2)
+                            {
+                                for (int j = 0; j < roads.Count; j++)
+                                {
+                                    if (roads[j].firstStop == way.path[i + 1] && roads[j].secondStop == way.path[0] || roads[j].secondStop == way.path[i] && roads[j].firstStop == way.path[0])
+                                    {
+                                        currentRoad = j;
+                                        break;
+                                    }
+                                }
+                                break;
+                            }
+                            else
+                            {
+                                for (int j = 0; j < roads.Count; j++)
+                                {
+                                    if (roads[j].firstStop == way.path[i + 1] && roads[j].secondStop == way.path[i + 2] || roads[j].secondStop == way.path[i + 1] && roads[j].firstStop == way.path[i + 2])
+                                    {
+                                        currentRoad = j;
+                                        break;
+                                    }
+                                }
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+            //Обход графа и сохранение весов
+            int position = -1;
+            for (int i = 0; i < way.path.Count; i++)
+            {
+                if (way.path[i] == busStop.ID && from == true) { position = i; break; }
+                if (way.path[i] == busStop.ID) position = i;
+            }
+            double wayStops = 0;
+            List<int> distances = new List<int>();
+            List<double> weights = new List<double>();
+            double currentX = (Cs[currentRoad] * verticalBs[currentRoad] - verticalCs[currentRoad] * Bs[currentRoad]) - (As[currentRoad] * verticalBs[currentRoad] - verticalAs[currentRoad] * Bs[currentRoad]);
+            double currentY = (As[currentRoad] * verticalCs[currentRoad] - verticalAs[currentRoad] * Cs[currentRoad]) - (As[currentRoad] * verticalBs[currentRoad] - verticalAs[currentRoad] * Bs[currentRoad]);
+            for (int i = position; i >= 0; i--)
+            {
+                int nStop = 0;
+                for (int j = 0; j < stops.Count; j++)
+                {
+                    if (stops[j].ID == way.path[i])
+                    {
+                        nStop = j;
+                        break;
+                    }
+                }
+                wayStops += stops[nStop].weight;
+                int back = i - 1; ;
+                if (i == 0) back = way.path.Count - 2;
+                if (way.path[i] == roads[currentRoad].firstStop || way.path[i] == roads[currentRoad].secondStop)
+                {
+                    double tmp = Math.Pow(currentX - stops[nStop].latitude, 2) + Math.Pow(currentY - stops[nStop].longitude, 2);
+                    distances.Add((int)Math.Sqrt(tmp));
+                    weights.Add(roads[currentRoad].weight[dayStatus(time)]);
+                    break;
+                }
+                for (int j = 0; j < roads.Count; j++)
+                {
+                    if (roads[j].firstStop == way.path[i] && roads[j].secondStop == way.path[back] || roads[j].secondStop == way.path[i] && roads[j].firstStop == way.path[back])
+                    {
+                        distances.Add(roads[j].length);
+                        weights.Add(roads[j].weight[dayStatus(time)]);
+                        break;
+                    }
+                }
+                if (i == 0) i = way.path.Count - 2;
+            }
+            //Вычисление результата
+            for (int i = 0; i < distances.Count; i++)
+            {
+                result.setX(result.first + distances[i]);
+            }
+            for (int i = 0; i < distances.Count; i++)
+            {
+                result.setY(result.second + distances[i] / result.first * weights[i]);
+            }
+
+            return result;
         }
     }
 }
